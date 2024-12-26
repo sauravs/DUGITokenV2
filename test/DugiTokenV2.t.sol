@@ -139,35 +139,34 @@ contract DUGITokenV2Test is Test {
         vm.stopPrank();
     }
 
-    // function testFail_BurnFromReserveNotAdmin() public {
-    //     vm.startPrank(user1);
-    //     vm.warp(block.timestamp + 30 days);
-    //     token.burnFromReserve();
-    //     vm.stopPrank();
-    // }
+    function testFail_BurnFromReserveNotAdmin() public {
+        vm.startPrank(user1);
+        vm.warp(block.timestamp + 30 days);
+        token.burnFromReserve();
+        vm.stopPrank();
+    }
 
-    // function testFail_BurnIntervalNotReached() public {
-    //     vm.startPrank(burnAdmin);
-    //     token.burnFromReserve();
-    //     vm.stopPrank();
-    // }
+    function testFail_BurnIntervalNotReached() public {
+        vm.startPrank(burnAdmin);
+        token.burnFromReserve();
+        vm.stopPrank();
+    }
 
     
 
-  
-
-
-    // function test_BurnCycle() public {
-    //     vm.startPrank(burnAdmin);
+    function test_BurnCycle() public {
+        vm.startPrank(burnAdmin);
         
-    //     for(uint32 i = 0; i < token.TOTAL_BURN_SLOTS(); i++) {
-    //         vm.warp(block.timestamp + 30 days);
-    //         if(token.burnReserve() > 0) {
-    //             token.burnFromReserve();
-    //         }
-    //     }
+        for(uint32 i = 0; i < token.TOTAL_BURN_SLOTS(); i++) {
+            vm.warp(block.timestamp + 30 days);
+            if(token.burnReserve() > 0) {
+                token.burnFromReserve();
+            }
+        }
         
-    //     assertTrue(token.burnEnded());
-    //     vm.stopPrank();
-    // }
+        assertTrue(token.burnEnded());
+        // ensure burnReserve is empty
+        assertEq(token.burnReserve(), 0);
+        vm.stopPrank();
+    }
 }

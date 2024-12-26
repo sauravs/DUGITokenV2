@@ -103,29 +103,35 @@ contract DUGITokenV2 is ERC20Permit, Ownable {
 
     /// @notice Burns tokens from the burn reserve
     /// @dev Burns 0.0714% of max supply if conditions are met
-    function burnFromReserve() external {
-        if (msg.sender != tokenBurnAdmin) revert NotBurnAdmin();
-        if (block.timestamp < lastBurnTimestamp + BURN_INTERVAL) revert BurnIntervalNotReached();
-        if (burnReserve <= 0) revert BurnReserveEmpty();
-        if (burnEnded) revert BurningHasEnded();
+   function burnFromReserve() external {
+    if (msg.sender != tokenBurnAdmin) revert NotBurnAdmin();
+    if (block.timestamp < lastBurnTimestamp + BURN_INTERVAL) revert BurnIntervalNotReached();
+    if (burnReserve <= 0) revert BurnReserveEmpty();
+    if (burnEnded) revert BurningHasEnded();
 
-        if (!burnStarted) {
-            burnStarted = true;
-        }
-
-        uint256 burnAmount = (MAX_SUPPLY * 714) / 1_000_000; // 0.0714%
-        burnReserve -= burnAmount;
-        _burn(address(this), burnAmount);
-
-        burnCounter++;
-
-        if (burnCounter >= TOTAL_BURN_SLOTS) {
-            burnEnded = true;
-        }
-
-        lastBurnTimestamp = block.timestamp;
-        emit TokensBurned(burnAmount, block.timestamp, burnCounter);
+    if (!burnStarted) {
+        burnStarted = true;
     }
+
+    uint256 burnAmount = (MAX_SUPPLY * 714) / 1_000_000; // 0.0714%
+
+    // Ensure burnAmount does not exceed burnReserve
+    if (burnAmount > burnReserve) {
+        burnAmount = burnReserve;
+    }
+
+    burnReserve -= burnAmount;
+    _burn(address(this), burnAmount);
+
+    burnCounter++;
+
+    if (burnCounter >= TOTAL_BURN_SLOTS || burnReserve == 0) {
+        burnEnded = true;
+    }
+
+    lastBurnTimestamp = block.timestamp;
+    emit TokensBurned(burnAmount, block.timestamp, burnCounter);
+}
 
   
 
