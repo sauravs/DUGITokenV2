@@ -1,66 +1,50 @@
-## Foundry
+## DugiToken : An ERC20 Compliant Token
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+**DugiToken - ERC20 Compliant Token created for Sgadugi Community to support the community and charity events.Token will be used in POS system in casinos**
 
-Foundry consists of:
+**Important Details about this token:**
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+-   **Total Maximum Supply**:  21 Trillion
+-   **Token Name**: Dugi Token
+-   **Token Symbol**: DUGI
+-   **Token Decimals**: 18
+-   **Burning Mechanism**: YES
 
-## Documentation
 
-https://book.getfoundry.sh/
+## Burning Details
 
-## Usage
+- Every 30 days approximately 0.0714% of maximum supply (15 billion token per month) will be burn from BurnToken Reserve for next 35 years till BurnToken reserve reaches to zero .
+- **BurnToken Reserve**:  10% of Total Maximum Supply (21 Trillion)
+                       : 2.1 Trillion
 
-### Build
+
+
+### To run Tests
 
 ```shell
+$ clone the repo
+$ install foundry
 $ forge build
-```
-
-### Test
-
-```shell
 $ forge test
 ```
 
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
 
 ### Deploy
 
 ```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+$ forge script script/DeployDugiToken.s.sol:DeployDugiToken --rpc-url $POLYGON_AMOY_RPC_URL
+$ forge script script/DeployDugiToken.s.sol:DeployDugiToken --rpc-url $POLYGON_AMOY_RPC_URL --broadcast --verify -vvvv
+
+$ forge script script/DeployDugiToken.s.sol:DeployDugiToken --rpc-url $POLYGON_MAINNET_RPC_URL
+$ forge script script/DeployDugiToken.s.sol:DeployDugiToken --rpc-url $POLYGON_MAINNET_RPC_URL --broadcast -vvvv
 ```
 
-### Cast
+  ### To verify deployed contract:
+     ```
+	  $ forge verify-contract <contract_address> <contract_name> --chain-id <80002> --etherscan-api-key $<AMOY_POLYGONSCAN_KEY> --constructor-args <ABI_ENCODED_CONSTRUCTOR_ARGS> --watch
 
-```shell
-$ cast <subcommand>
-```
+    forge verify-contract <contract_address> <contract_name> --chain-id <80002> --etherscan-api-key $<AMOY_POLYGONSCAN_KEY> --constructor-args <ABI_ENCODED_CONSTRUCTOR_ARGS> --watch
+    ```
 
-### Help
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+
