@@ -13,9 +13,8 @@ contract DUGITokenV2 is ERC20Permit, Ownable {
     using SafeERC20 for IERC20;
 
     /// @notice Maximum token supply - 21 trillion tokens
-    
-    uint256 public constant MAX_SUPPLY = 21_000_000_000_000 * 10 ** 18;
-        
+
+    uint256 public constant MAX_SUPPLY = 21e30;
 
     /// @notice 5% of maximum supply reserved for charity
     uint256 public charityReserve = (MAX_SUPPLY * 5) / 100;
@@ -23,29 +22,28 @@ contract DUGITokenV2 is ERC20Permit, Ownable {
     /// @notice 10% of maximum supply reserved for token burning
     uint256 public burnReserve = (MAX_SUPPLY * 10) / 100;
 
+
+
     /// @notice Time interval between burn operations (30 days)
     uint256 public constant BURN_INTERVAL = 30 days;
 
     /// @notice Address receiving initial 5% donation allocation
-    address public charityWallet ;
+    address public charityWallet;
 
     /// @notice Address authorized to execute token burns - can be updated by owner
     address public tokenBurnAdmin;
 
-    /// @notice Timestamp of the last burn operation
-    uint256 public lastBurnTimestamp;
+    struct BurnState {
+        uint128 burnCounter;        // Current burn round number
+        uint128 lastBurnTimestamp;  // Timestamp of last burn
+        bool burnStarted;           // Flag to indicate if burning has started
+        bool burnEnded;             // Flag to indicate if all burn rounds are completed
+    }
 
-    /// @notice Indicates if burning cycle has started
-    bool public burnStarted;
-
-    /// @notice Indicates if burning cycle has ended
-    bool public burnEnded;
+    BurnState public burnState;
 
     /// @notice Total number of burn rounds (35 years * 12 months + 1 month for residual)
     uint256 public constant TOTAL_BURN_SLOTS = 421;
-
-    /// @notice Counter tracking completed burn rounds
-    uint32 public burnCounter;
 
     /// @notice Emitted when tokens are burned from reserve
     /// @param amount The amount of tokens burned
@@ -68,22 +66,22 @@ contract DUGITokenV2 is ERC20Permit, Ownable {
     /// @dev Sets up donation wallet and burn admin, distributes initial supply to predefined owner
     /// @param _charityWallet  Address to receive 5% of initial supply
     /// @param _tokenBurnAdmin Initial burn admin address
-    constructor(address _charityWallet , address _tokenBurnAdmin)
+    constructor(address _charityWallet, address _tokenBurnAdmin)
         ERC20("DUGI Token", "DUGI")
         ERC20Permit("DUGI Token")
         Ownable(0x8ffBF5c96AD55296E2A1Cac63DC512A94747bE9D)
     {
-        if (_charityWallet  == address(0)) revert ZeroAddress();
+        if (_charityWallet == address(0)) revert ZeroAddress();
         if (_tokenBurnAdmin == address(0)) revert ZeroAddress();
 
-        charityWallet  = _charityWallet ;
+        charityWallet = _charityWallet;
         tokenBurnAdmin = _tokenBurnAdmin;
-        lastBurnTimestamp = block.timestamp;
+        burnState.lastBurnTimestamp = uint128(block.timestamp);
 
         uint256 ownerAmount = MAX_SUPPLY - charityReserve - burnReserve; // 85% of max supply
 
         _mint(address(this), burnReserve);
-        _mint(charityWallet , charityReserve);
+        _mint(charityWallet, charityReserve);
         _mint(0x8ffBF5c96AD55296E2A1Cac63DC512A94747bE9D, ownerAmount);
     }
 
@@ -98,16 +96,17 @@ contract DUGITokenV2 is ERC20Permit, Ownable {
 
     /// @notice Burns tokens from the burn reserve
     /// @dev Burns 0.0714% of max supply after every 30 days if conditions are met
+
     function burnFromReserve() external {
         if (msg.sender != tokenBurnAdmin) revert NotBurnAdmin();
-        if (block.timestamp < lastBurnTimestamp + BURN_INTERVAL) revert BurnIntervalNotReached();
-        if (burnReserve == 0 || burnEnded) revert BurnReserveEmpty();
+        if (block.timestamp < burnState.lastBurnTimestamp + BURN_INTERVAL) revert BurnIntervalNotReached();
+        if (burnReserve == 0 || burnState.burnEnded) revert BurnReserveEmpty();
 
-        if (!burnStarted) {
-            burnStarted = true;
+        if (!burnState.burnStarted) {
+            burnState.burnStarted = true;
         }
 
-        uint256 burnAmount = (MAX_SUPPLY * 714) / 1_000_000; // 0.0714%
+        uint256 burnAmount = (MAX_SUPPLY * 714) / 1e6; // 0.0714% = 7.14e-4
 
         // ensure burnAmount does not exceed burnReserve
         if (burnAmount > burnReserve) {
@@ -117,13 +116,13 @@ contract DUGITokenV2 is ERC20Permit, Ownable {
         burnReserve -= burnAmount;
         _burn(address(this), burnAmount);
 
-        burnCounter++;
+        burnState.burnCounter++;
 
-        if (burnCounter >= TOTAL_BURN_SLOTS || burnReserve == 0) {
-            burnEnded = true;
+        if (burnState.burnCounter >= TOTAL_BURN_SLOTS || burnReserve == 0) {
+            burnState.burnEnded = true;
         }
 
-        lastBurnTimestamp = block.timestamp;
-        emit TokensBurned(burnAmount, block.timestamp, burnCounter);
+        burnState.lastBurnTimestamp = uint128(block.timestamp);
+        emit TokensBurned(burnAmount, block.timestamp, burnState.burnCounter);
     }
 }

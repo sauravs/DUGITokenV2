@@ -11,7 +11,7 @@ contract DeployDugiToken is Script {
 
         uint256 pvtKey = vm.envUint("DEPLOYER_PVT_KEY");
         address account = vm.addr(pvtKey);
-        console.log("deployer address on amoy = ", account);
+        console.log("deployer address on polygon = ", account);
 
         vm.startBroadcast(pvtKey);
 

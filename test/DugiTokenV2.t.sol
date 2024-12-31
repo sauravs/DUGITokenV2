@@ -7,7 +7,7 @@ import {DUGITokenV2} from "../src/DugiTokenV2.sol";
 contract DUGITokenV2Test is Test {
     DUGITokenV2 public token;
     address public owner = address(0x8ffBF5c96AD55296E2A1Cac63DC512A94747bE9D);
-    address public charityWallet ;
+    address public charityWallet;
     address public burnAdmin;
     address public contractDeployer;
     address public user1;
@@ -25,7 +25,7 @@ contract DUGITokenV2Test is Test {
     event TokenBurnAdminChanged(address indexed oldAdmin, address indexed newAdmin);
 
     function setUp() public {
-        charityWallet  = makeAddr("charityWallet ");
+        charityWallet = makeAddr("charityWallet ");
         burnAdmin = makeAddr("burnAdmin");
         user1 = makeAddr("user1");
         user2 = makeAddr("user2");
@@ -37,7 +37,7 @@ contract DUGITokenV2Test is Test {
 
         vm.deal(contractDeployer, 1 ether);
         vm.startPrank(contractDeployer);
-        token = new DUGITokenV2(charityWallet , burnAdmin);
+        token = new DUGITokenV2(charityWallet, burnAdmin);
         vm.stopPrank();
     }
 
@@ -51,7 +51,7 @@ contract DUGITokenV2Test is Test {
     }
 
     function test_InitialDistribution() public {
-        assertEq(token.balanceOf(charityWallet ), (token.MAX_SUPPLY() * 5) / 100);
+        assertEq(token.balanceOf(charityWallet), (token.MAX_SUPPLY() * 5) / 100);
         assertEq(token.balanceOf(owner), (token.MAX_SUPPLY() * 85) / 100);
         assertEq(token.balanceOf(address(token)), (token.MAX_SUPPLY() * 10) / 100);
         assertEq(token.burnReserve(), (token.MAX_SUPPLY() * 10) / 100);
@@ -132,9 +132,11 @@ contract DUGITokenV2Test is Test {
 
         token.burnFromReserve();
 
+        (uint128 burnCounter,, bool burnStarted,) = token.burnState();
+
         assertEq(token.burnReserve(), initialBurnReserve - expectedBurnAmount);
-        assertEq(token.burnCounter(), 1);
-        assertTrue(token.burnStarted());
+        assertEq(burnCounter, 1);
+        assertTrue(burnStarted);
         assertEq(token.totalSupply(), token.MAX_SUPPLY() - expectedBurnAmount);
         vm.stopPrank();
     }
@@ -157,35 +159,31 @@ contract DUGITokenV2Test is Test {
 
         uint256 initialTotalSupply = token.totalSupply();
         uint256 initialBurnReserve = token.burnReserve();
-        uint256 burnAmount = (token.MAX_SUPPLY() * 714) / 1_000_000; // 0.0714%
+        uint256 burnAmount = (token.MAX_SUPPLY() * 714) / 1_000_000;
         uint256 cumulativeBurned = 0;
 
         for (uint32 i = 0; i < token.TOTAL_BURN_SLOTS(); i++) {
-            {
-                vm.warp(block.timestamp + 30 days);
+            vm.warp(block.timestamp + 30 days);
 
-                if (token.burnReserve() > 0) {
-                    uint256 preSupply = token.totalSupply();
-                    uint256 preBurnReserve = token.burnReserve();
+            if (token.burnReserve() > 0) {
+                uint256 preSupply = token.totalSupply();
+                uint256 preBurnReserve = token.burnReserve();
 
-                    token.burnFromReserve();
+                token.burnFromReserve();
 
-                    uint256 actualBurned = preBurnReserve - token.burnReserve();
-                    cumulativeBurned += actualBurned;
+                (uint128 burnCounter,,,) = token.burnState();
 
-                    // verify burn amount
-                    assertEq(actualBurned, burnAmount <= preBurnReserve ? burnAmount : preBurnReserve);
+                uint256 actualBurned = preBurnReserve - token.burnReserve();
+                cumulativeBurned += actualBurned;
 
-                    // verify total supply reduction
-                    assertEq(token.totalSupply(), preSupply - actualBurned);
-
-                    // verify running total supply
-                    assertEq(token.totalSupply(), initialTotalSupply - cumulativeBurned);
-                }
+                assertEq(actualBurned, burnAmount <= preBurnReserve ? burnAmount : preBurnReserve);
+                assertEq(token.totalSupply(), preSupply - actualBurned);
+                assertEq(burnCounter, i + 1);
             }
         }
 
-        assertTrue(token.burnEnded());
+        (,,, bool burnEnded) = token.burnState();
+        assertTrue(burnEnded);
         assertEq(token.burnReserve(), 0);
         assertEq(token.totalSupply(), initialTotalSupply - initialBurnReserve);
         vm.stopPrank();
@@ -207,7 +205,8 @@ contract DUGITokenV2Test is Test {
         uint256 cumulativeBurned = 0;
         uint256 lastBurnTime = block.timestamp;
 
-        for (uint32 i = 0; i < numBurnSlots && !token.burnEnded(); i++) {
+        (,,, bool isBurnEnded) = token.burnState();
+        for (uint32 i = 0; i < numBurnSlots && !isBurnEnded; i++) {
             vm.warp(lastBurnTime + burnInterval);
 
             if (token.burnReserve() > 0) {
@@ -216,6 +215,7 @@ contract DUGITokenV2Test is Test {
 
                 token.burnFromReserve();
 
+                (uint128 burnCounter,,,) = token.burnState();
                 uint256 actualBurned = preBurnReserve - token.burnReserve();
                 cumulativeBurned += actualBurned;
 
@@ -223,10 +223,11 @@ contract DUGITokenV2Test is Test {
                 assertTrue(actualBurned > 0 && actualBurned <= burnAmount);
                 assertTrue(actualBurned <= preBurnReserve);
                 assertEq(token.totalSupply(), preSupply - actualBurned);
-                assertEq(token.burnCounter(), i + 1);
+                assertEq(burnCounter, i + 1);
             }
 
             lastBurnTime = block.timestamp;
+            (,,, isBurnEnded) = token.burnState();
         }
 
         // verify final state
@@ -235,7 +236,8 @@ contract DUGITokenV2Test is Test {
         assertTrue(cumulativeBurned <= initialBurnReserve);
 
         if (numBurnSlots >= token.TOTAL_BURN_SLOTS()) {
-            assertTrue(token.burnEnded());
+            (,,, bool burnEnded) = token.burnState();
+            assertTrue(burnEnded);
             assertEq(token.burnReserve(), 0);
         }
 
